@@ -1,0 +1,7 @@
+out/
+out2/
+best-game-01-kit/
+kit.tar.gz
+SUBMISSION.md
+node_modules/
+*.log
