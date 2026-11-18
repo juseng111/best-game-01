@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gloomreef — a light warden defends the last reef</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0518; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #f4f1ff; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .hidden { display: none !important; }
+
+  /* HUD */
+  #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; z-index: 5; }
+  #hud-xp { height: 8px; background: rgba(255, 255, 255, 0.12); }
+  #hud-xp-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #2dd4bf, #67e8f9); transition: width 0.2s ease; }
+  #hud-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 16px; }
+  .hud-block { display: flex; flex-direction: column; gap: 4px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); }
+  .hud-label { font-size: 11px; letter-spacing: 0.18em; color: #a89cc9; text-transform: uppercase; }
+  #hud-score { font-size: 30px; font-weight: 800; line-height: 1; }
+  #hud-best { font-size: 12px; color: #a89cc9; }
+  #hud-wave { font-size: 22px; font-weight: 700; }
+  #hud-wave-wrap { align-items: center; }
+  #hud-hp { display: flex; align-items: center; gap: 8px; }
+  #hud-hp-bar { width: 180px; height: 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.55); overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.25); }
+  #hud-hp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #2dd4bf, #4ade80); transition: width 0.2s ease; }
+  #hud-hp-text { font-size: 12px; }
+  #hud-level { font-size: 13px; font-weight: 700; color: #67e8f9; }
+  #hud-shields { font-size: 14px; color: #67e8f9; letter-spacing: 0.2em; min-height: 18px; }
+  .hud-buttons { display: flex; gap: 8px; pointer-events: auto; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(16, 8, 38, 0.7); color: #f4f1ff; font-size: 18px; cursor: pointer; }
+  .icon-btn:hover { background: rgba(45, 212, 191, 0.35); }
+
+  /* Overlays */
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; padding: 20px; }
+  .panel { background: rgba(16, 8, 38, 0.88); border: 1px solid #4c3a7d; border-radius: 18px; padding: 34px 42px; max-width: 620px; text-align: center; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6); backdrop-filter: blur(6px); }
+  .panel h1 { margin: 0 0 6px; font-size: 58px; letter-spacing: 0.06em; line-height: 1; background: linear-gradient(90deg, #2dd4bf, #67e8f9 45%, #ff7a6b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .panel h2 { margin: 0 0 10px; font-size: 34px; }
+  .panel p { margin: 8px 0; color: #cfc6ec; font-size: 16px; line-height: 1.5; }
+  .tagline { font-size: 18px !important; color: #f4f1ff !important; }
+  .btn { display: inline-block; margin-top: 18px; padding: 13px 34px; font-size: 19px; font-weight: 700; border: none; border-radius: 999px; background: linear-gradient(90deg, #2dd4bf, #67e8f9); color: #06281f; cursor: pointer; box-shadow: 0 6px 24px rgba(45, 212, 191, 0.4); }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:active { transform: translateY(1px); }
+  .controls { margin: 16px auto 4px; text-align: left; display: inline-block; font-size: 15px; line-height: 2; color: #cfc6ec; }
+  kbd { background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.3); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; font-family: inherit; font-size: 13px; color: #f4f1ff; }
+  .best-line { margin-top: 16px; font-size: 14px; color: #a89cc9; }
+
+  /* Level-up cards */
+  #levelup-cards { display: flex; gap: 14px; margin-top: 20px; }
+  .card { position: relative; width: 178px; min-height: 150px; padding: 18px 14px 14px; text-align: left; background: rgba(45, 212, 191, 0.12); border: 1px solid #2dd4bf; border-radius: 14px; color: #f4f1ff; cursor: pointer; font-family: inherit; }
+  .card:hover { background: rgba(45, 212, 191, 0.26); transform: translateY(-3px); }
+  .card-key { position: absolute; top: 8px; right: 10px; font-size: 12px; color: #a89cc9; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; padding: 0 6px; }
+  .card-name { display: block; font-size: 17px; font-weight: 800; margin-bottom: 2px; }
+  .card-level { display: block; font-size: 12px; color: #67e8f9; margin-bottom: 8px; }
+  .card-text { display: block; font-size: 14px; line-height: 1.45; color: #cfc6ec; }
+  .hint { margin-top: 16px; font-size: 13px; color: #a89cc9; }
+
+  /* Game over numbers */
+  .big-score { font-size: 52px; font-weight: 800; line-height: 1; margin: 6px 0 2px; color: #ffd166; }
+  .stats { display: flex; gap: 28px; justify-content: center; margin-top: 14px; }
+  .stats div { font-size: 14px; color: #a89cc9; }
+  .stats b { display: block; font-size: 22px; color: #f4f1ff; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Gloomreef: move with WASD or arrow keys, aim with the mouse, hold click or Space to fire light bolts at the shadow creatures"></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud" class="hidden">
+  <div id="hud-xp"><div id="hud-xp-fill"></div></div>
+  <div id="hud-row">
+    <div class="hud-block">
+      <span class="hud-label">Score</span>
+      <span id="hud-score">0</span>
+      <span id="hud-best">Best 0</span>
+      <span id="hud-hp">
+        <span id="hud-hp-bar"><span id="hud-hp-fill" style="display:block"></span></span>
+        <span id="hud-hp-text">100 / 100</span>
+      </span>
+      <span id="hud-level">Lv 1</span>
+      <span id="hud-shields"></span>
+    </div>
+    <div class="hud-block" id="hud-wave-wrap">
+      <span class="hud-label">Wave</span>
+      <span id="hud-wave">—</span>
+    </div>
+    <div class="hud-buttons">
+      <button id="btn-mute" class="icon-btn" type="button" aria-label="Mute sound">🔊</button>
+      <button id="btn-pause" class="icon-btn" type="button" aria-label="Pause game">⏸</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay-title" class="overlay">
+  <div class="panel">
+    <h1>GLOOMREEF</h1>
+    <p class="tagline">A lone light warden defends the last coral reef against the shadows.</p>
+    <p>Survive the waves. Gather lumen gems. Choose your boons. How long can the light hold?</p>
+    <div class="controls">
+      <div><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or <kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> — move</div>
+      <div>Mouse — aim &nbsp;·&nbsp; Hold click or <kbd>Space</kbd> — fire light bolts</div>
+      <div><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> — pick a boon on level up &nbsp;·&nbsp; <kbd>P</kbd> — pause &nbsp;·&nbsp; <kbd>M</kbd> — mute</div>
+    </div>
+    <br>
+    <button id="btn-start" class="btn" type="button">Dive In</button>
+    <div class="best-line" id="title-best">No dives yet — the reef is waiting.</div>
+  </div>
+</div>
+
+<div id="overlay-levelup" class="overlay hidden">
+  <div class="panel">
+    <h2>✦ Level Up ✦</h2>
+    <p>Choose one boon. The reef grows darker with every wave.</p>
+    <div id="levelup-cards"></div>
+    <div class="hint">Click a card, or press 1, 2 or 3.</div>
+  </div>
+</div>
+
+<div id="overlay-pause" class="overlay hidden">
+  <div class="panel">
+    <h2>Paused</h2>
+    <p>The shadows wait. The light does not fade while you rest.</p>
+    <button id="btn-resume" class="btn" type="button">Resume</button>
+    <div class="hint">Press P or Esc to resume.</div>
+  </div>
+</div>
+
+<div id="overlay-over" class="overlay hidden">
+  <div class="panel">
+    <h2>The reef goes dark</h2>
+    <div class="big-score" id="over-score">0</div>
+    <p>final score</p>
+    <div class="stats">
+      <div>Wave reached<b id="over-wave">1</b></div>
+      <div>Shadows banished<b id="over-kills">0</b></div>
+      <div>Best score<b id="over-best">0</b></div>
+    </div>
+    <button id="btn-restart" class="btn" type="button">Dive Again</button>
+    <div class="hint">Or press Space to dive again.</div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
